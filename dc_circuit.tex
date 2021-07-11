@@ -12,8 +12,7 @@
 \newcommand{\Vref}{$V_{ref}$}
 \newcommand{\chippin}{\texttt}
 
-% TODO: add SCP explanation
-% TODO: understand and add 34V generator
+% TODO: finish 34V generator
 \begin{document}
 \section{About This Document}
 This is my attempt to understand how the DC power board in the Game
@@ -96,12 +95,11 @@ in series, for an optimal voltage of \qty{9}{\volt}.
 
 The power jack, however, is a little more complicated. An American
 Game Gear accepts a center-positive \qty{1.7}{\milli\meter} inner
-diameter by \qty{4.75}{\milli\meter} outer diameter barrel plug, while
-a European (and possibly Japanese?) Game Gear accepts a more common
+diameter by \qty{4.75}{\milli\meter} outer diameter barrel plug. A
+European (and possibly Japanese?) Game Gear accepts a more common
 \qty{2.1}{\milli\meter}/\qty{5.5}{\milli\meter}
 \textbf{center-negative} plug. Note that the polarity is switched
-between the two regions. I have no idea why Sega decided this was a
-good idea.
+between the two regions.
 
 On the power board, the positive line of the DC jack is connected
 through diode $D_1$ to the positive line of the battery pack. The
@@ -170,13 +168,12 @@ internally-generated triangular waveform, but there's no simple
 equation for the values like there is for other parts of the chip.
 
 \subsection{Short Circuit Protection}
-I'm confident that the Game Gear's short circuit protection is
+I'm confident that the Game Gear's short circuit protection (SCP) is
 actually the heart of a common mistake or rumor: the ASIC(s) on the
 main board \emph{do not} protect the console from shorts. Instead, the
 protection is all within the power board, and basically entirely
-enclosed in the MB3775. The short circuit protection (SCP) circuitry
-works like this (don't confuse the SCP circuitry with the
-\chippin{SCP} pin):
+enclosed in the MB3775. The SCP circuitry works like this (don't
+confuse the SCP circuitry with the \chippin{SCP} pin):
 
 \begin{enumerate}
 \item The outputs of the error amplifiers are connected to the
@@ -218,12 +215,12 @@ where
   which, together, disable any current output from the \chippin{OUT1}
   and \chippin{OUT2} pins.
 \item Once the under-voltage lockout is enabled, the protection enable
-  is released, but the latch won't reset until power is turned off.
+  is released, but the latch won't reset until power is turned
+  off. The chip won't restore power until it's removed and re-applied.
 \end{enumerate}
 
 Point 1 means that if \emph{either} of the chip's outputs trigger the
-short condition, then the entire chip will power down and stay off
-until power is lost and re-applied.
+short condition, then the entire chip will power down.
 
 Note: the SCP comparator will only output the ``low'' signal if the
 voltage drops beneath \qty{1.1}{\volt} for $t_{PE} = 0.408$
@@ -446,14 +443,14 @@ drawn by the tube, and that the other circuitry does not draw much
 current.
 
 $Q_3$ has a maximum collector current of \qty{-3}{A}. This means it
-can supply up to \qty{3}{A} from the emitter. Even if all
+can supply up to \qty{3}{A}, sourced from the emitter. Even if all
 \qty{330}{\milli{}A} were on just the \qty{5}{\volt} line ($Q_3$'s
 collector), there would still be over \qty{2.5}{A} of leeway for other
 things to draw current.
 
 However, it's probably not a good idea to draw from the
-\qty{34}{\volt}. Transistors $Q_1$ and $Q_2$ have a maximum collector
-current of \qty{-100}{\milli{}A} and \qty{100}{\milli{}A},
+\qty{34}{\volt} supply. Transistors $Q_1$ and $Q_2$ have a maximum
+collector current of \qty{-100}{\milli{}A} and \qty{100}{\milli{}A},
 respectively. This comparatively small limit means that there probably
 isn't much space to draw new current (and converting \qty{34}{\volt}
 to something useful is difficult and inefficient anyway).
