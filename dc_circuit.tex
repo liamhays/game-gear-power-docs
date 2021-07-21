@@ -12,7 +12,10 @@
 \newcommand{\Vref}{$V_{ref}$}
 \newcommand{\chippin}{\texttt}
 \newcommand{\model}{\textsf}
-% TODO: connect "PWM" to "pulse width modulation"
+
+% TODO: What is the blinking voltage?
+% TODO: ESR of smoothing capacitors likely has some kind of effect.
+% TODO: error amp input ripple voltage?
 \begin{document}
 \section{About This Document}
 This is my attempt to understand how the DC power board in the Game
@@ -21,22 +24,28 @@ voltages. I have also not understood every piece of the circuit; see
 Section \ref{sec:remaining_questions} for parts that still aren't
 clear or explained.
 
-This document is also meant to be used alongside a schematic of the
-power board, in particular, the \model{VA1} schematic. The \model{VA0}
-one is similar but not identical, and has several components that were
-removed for the next revision. See Section \ref{sec:documents} for
-URLs for both schematics and datasheets. In this document, chip pins
-are \chippin{typeset like this}, components (plus voltages and
-currents) are typeset like this: \Vref{}, and model numbers are
-\model{typeset like this}.
+This document is not meant to stand alone. It is intended to be used
+alongside a schematic of the power board, in particular, the
+\model{VA1} schematic. The \model{VA0} one is similar but not
+identical, and has several components that were removed for the next
+revision. See Section \ref{sec:documents} for URLs for both schematics
+and datasheets.
+
+In this document, chip pins are \chippin{typeset like this},
+components, voltages and currents are typeset like this:
+\Vref{}, and model numbers are \model{typeset like this}.
 
 I also try to explain everything in as much depth as I reasonably
 can. If you understand, for example, how switching regulators work,
 you can probably give less attention to that section in the document.
 
-I claim no responsibility if you try to modify the board, tap a power
-line, or something else completely, and your battery-guzzling handheld
-releases the magic blue smoke. Be careful!
+If you use information from this document in a project, please credit
+me, and add a link to the GitHub repository if possible (it's not
+required, though).
+
+I claim no responsibility if you try to modify your console, tap a
+power line, or something else completely, and your battery-guzzling
+handheld releases the magic blue smoke. Be careful!
 
 \section{Introduction}
 The Game Gear has to supply 5 volt and 34 volt DC, all from a set of
@@ -65,9 +74,8 @@ doesn't.
 \item[\Vcc{}] The positive voltage from the 6 batteries or the DC power
   jack. This is ideally \qty{9}{\volt}, but it will vary.
 \item[\Vout{}] The final regulated \qty{5}{\volt} output.
-\item[\Vref{}] The \qty{1}{\milli{}A} \qty{1.28}{\volt} supply from
-  the \model{MB3775}. This is also present on the board connector,
-  with the same name.
+\item[\Vref{}] A \qty{1}{\milli{}A} \qty{1.28}{\volt}, internally
+  generated within \model{MB3775}.
 \end{description}
 
 \section{Power Input Section}
@@ -75,29 +83,55 @@ This portion of the schematic is presented in the two dashed boxes at
 the top of the \model{VA1} page. On the \model{VA0} page, it is at the
 top left (look for $J_1$).
 
-\subsection{Batteries}
+\subsection{Batteries and Chemistry}
+For this section, reference the graphs at
+\url{https://www.powerstream.com/AA-tests.htm}. The various battery
+facts and statistics I state here are from the graphs on this
+page. For alkaline AAs, use the \qty{500}{\milli{}A} discharge current
+graph. The NiMH graph is at the very bottom of the page.
+
 Raw unregulated power can come from one of two sources on the Game
 Gear: a) the 6 AAs, or b) the DC power jack. The AAs are connected
 in series, for an optimal voltage of \qty{9}{\volt}.
 
-% we should discuss NiMH vs alkaline
-% though this would take some research
+As in many battery-powered devices, both alkaline and NiMH AAs work
+fine. However, NiMH batteries have a voltage profile during discharge
+that is nearly flat, until the end of the cycle, where the voltage
+drops sharply. This means that while NiMH batteries work in the
+console, there isn't much time between when the power LED starts
+blinking and when the battery voltage gets so low that the console
+can't even turn on.
 
+The \model{MB3775} is responsible for turning the console off when
+\Vcc{} is beneath \qty{2.5}{\volt} (see Section \ref{sec:scp}). \Vcc{}
+is connected to the main board through the power board connector, and
+is monitored by the ASIC(s). The power LED is not connected to \Vcc{}
+or a regulated output, but to a pin on the main ASIC (either the
+larger one or the only one, depending on board revision). This chip is
+in control of the power LED, and blinks it once \Vcc{} reaches some
+threshold voltage. I suspect that this threshold is around
+\qty{5}{\volt}, resulting in a per-cell voltage of about
+\qty{0.8}{\volt}. This is close to the voltage of an alkaline AA when
+it is close to fully discharged.
+
+% TODO: what might be behind that behavior where the whole thing would
+% briefly power on if a cartridge wasn't inserted well? That sounds
+% like SCP to me.
 \subsection{DC Jack Switching}
 Note: this subsection describes the DC jack in an American Game
 Gear. For a European model (see Section \ref{sec:plug_dimensions}),
 switch the polarities of the jack.
 
-The DC jack, $J_1$, is a \textit{switched jack}. For convenience,
-let's number the pins from top to bottom as 1, 2, and 3. Let's also
-call the positive end of the batteries $BT_1$ and the negative end
-$BT_2$, like the schematic does.
+The DC jack, $J_1$, is a particular type of jack known as a
+\textit{switched jack}. For convenience, let's number the pins from
+top to bottom as 1, 2, and 3. Let's also call the positive end of the
+batteries \chippin{BT+} and the negative \chippin{BT-}.
 
-When no plug is inserted, pin 3 is connected to $BT_1$ through diode
-$D_1$, preventing any current from flowing into the DC jack, and pins
-1 and 2 are connected to each other and to $BT_2$. When a plug is
-inserted, the connection between pins 1 and 2 is broken. This leaves
-pin 2 floating and disconnects the batteries from the circuit,
+When no plug is inserted, pin 3 is connected to \chippin{BT+} through
+diode $D_1$, preventing any current from flowing into the DC jack, and
+pins 1 and 2 are connected to each other and to \chippin{BT-}. When a
+plug is inserted, the connection between pins 1 and 2 is broken. This
+leaves pin 2 floating and disconnects the batteries from the circuit,
 protecting them from the current supplied by the DC jack. Now, the DC
 jack provides \Vcc{}.
 
@@ -105,10 +139,10 @@ This is where the schematic becomes confusing. The \model{VA1}
 schematic has pin 1 connected to the battery ground through diode
 $D_6$, which is marked with the text ``\texttt{NOT USED}'' beneath
 it. If we assume that $D_6$ is not meant to be installed and that DC
-jack pin 1 is instead supposed to be directly connected to $BT_2$,
-then there's no way the switching feature of the DC jack is ever
-used. This is obviously an issue, and isn't explained at all in the
-\model{VA1} schematic.
+jack pin 1 is instead supposed to be directly connected to
+\chippin{BT-}, then there's no way the switching feature of the DC
+jack is ever used. This is obviously an issue, and isn't explained at
+all in the \model{VA1} schematic.
 
 The \model{VA0} schematic clears this up. It doesn't include $D_6$ at
 all, nor does it include the connection between DC jack pins 1 and
@@ -123,19 +157,20 @@ units accept a center-positive \qty{1.7}{\milli\meter} inner diameter
 by \qty{4.75}{\milli\meter} outer diameter barrel plug.
 
 Europe, of course, uses \qty{240}{\volt} wall power, so a European
-unit will use the lower power input block on the \model{VA1}
-schematic, or the only power input present on the European \model{VA0}
-schematic. European units accept a more commonly-sized
-\qty{2.1}{\milli\meter} inner diameter and \qty{5.5}{\milli\meter}
-outer diameter \textbf{center-negative} plug. Note the difference in
-polarity between regions.
+unit will use the lower power input block (``\texttt{For AC230V/AC240V
+  area}'') on the \model{VA1} schematic, or the only power input
+present on the European \model{VA0} schematic. European units accept a
+more commonly-sized \qty{2.1}{\milli\meter} inner diameter and
+\qty{5.5}{\milli\meter} outer diameter \textbf{center-negative}
+plug. Note the difference in polarity between regions.
 
 Japanese Game Gears apparently also use the European plug dimensions
 and pinout. See Section \ref{sec:other_sources} for sources on this.
 
 The positive and negative lines are then cleaned with the ferrite
-beads $J_V$ and $J_G$. These are visible on the circuit board as the
-long parallel vertical tubes to the lower right of the \model{MB3775}.
+beads $J_V$ and $J_G$. These are visible on the circuit board itself
+as the long parallel vertical tubes to the lower right of the
+\model{MB3775}.
 
 Finally, the switch will connect \Vcc{} to either ground (when the
 system is off) or to the battery/DC jack input. $C_{14}$ will settle
@@ -144,14 +179,16 @@ switch is vertically flipped on the \model{VA1} schematic, between
 regions.
 
 \subsection{Input Voltage}
+% TODO: not written very well
 This is an area that is actually very confusing, especially if you're
 trying to build your own power cord, like I did. The Game Gear case
 labels the power jack as \texttt{DC 9V}. However, the official Sega
 power supply (model \model{MK-2103}) for the Game Gear is
-\qty{10}{\volt}.
+\qty{10}{\volt}. Clearly, the voltages don't match---why doesn't this
+cause a problem?
 
-In reality, the exact voltage doesn't make all that much difference,
-for a few reasons:
+The exact input voltage doesn't make all that much difference, within
+reason, because:
 
 \begin{enumerate}
 \item An alkaline AA will only be at \qty{1.5}{\volt} for the first
@@ -165,34 +202,37 @@ for a few reasons:
   Source: \url{https://www.powerstream.com/AA-tests.htm}, the
   \qty{500}{\milli{}A} graph.
 \item The \model{MB3775} can operate from \qty{3.6}{\volt} to
-  \qty{18}{\volt}. The error amplifier means that the precise value of
-  \Vcc{} doesn't matter (within reasonable limit), as the chip's
-  output will adjust to compensate.
+  \qty{18}{\volt}. 
+\item The error amplifier means that the precise value of \Vcc{}
+  doesn't matter (within reasonable limit), as the chip's output will
+  adjust to compensate.
 \end{enumerate}
 
-Together, these mean that the power circuit is designed to work fine
+All this is to say that the power circuit is designed to work fine
 with a significant (at least $\pm{}\qty{2}{\volt}$) change in \Vcc{}
-voltage. I wouldn't be surprised if it even works fine at
-\qty{12}{\volt}.
+voltage. Therefore, both a \qty{9}{\volt} and a \qty{10}{\volt} supply
+will work, and I wouldn't be surprised if the console even works fine
+at \qty{12}{\volt}.
 
 \subsection{Compatible Plugs}
-I do not have a European Game Gear, but I assume that an Arduino-style
-power supply would work fine. These are very easy to acquire, but make
-sure the polarity is correct if you do this, because an Arduino-style
-supply is always center-positive.
+I do not have a European Game Gear, but I assume that an Arduino or
+similar power supply would work fine. These are very easy to acquire,
+but make sure the polarity is correct if you do this, because an
+Arduino-style supply is always center-positive.
 
 For a US Game Gear, I've had success using the CUI Devices plug model
 \model{PP-014}. DigiKey carries this as part number
 \model{CP-014-ND}. This plug fits and works perfectly.
 
 \section{\model{MB3775} Configuration}
-The Fujitsu \model{MB3775PF} is the heart of the whole power
+The Fujitsu \model{MB3775PF} ($IC_1$) is the heart of the whole power
 board. This chip has two pulse width modulated (PWM) outputs,
 short-circuit protection, a wide input voltage range, and low power
-consumption. It is a switching regulator controller, in essence a
-highly configurable PWM generator with an error amplifier, designed to
-drive switching regulators of any kind. It is powered directly from
-\Vcc{}.
+consumption. The ``\model{PF}'' suffix indicates a \model{SOP-16}
+package. The \model{MB3775} is a switching regulator controller, in
+essence a highly configurable PWM generator with an error amplifier,
+designed to drive switching regulators of any kind. It is powered
+directly from \Vcc{}.
 
 \subsection{Oscillator Timing}
 The oscillator timing pins, $C_T$ and $R_T$, are connected to ground
@@ -208,6 +248,7 @@ particular values of $C_T$ and $R_T$, which are not the values used
 here.
 
 \subsection{Short Circuit Protection}
+\label{sec:scp}
 I'm confident that the Game Gear's short circuit protection (SCP) is
 actually the heart of a common mistake or rumor: the ASIC(s) on the
 main board \emph{do not} protect the console from shorts. Instead, the
@@ -217,7 +258,7 @@ confuse the SCP circuitry with the \chippin{SCP} pin):
 
 \begin{enumerate}
 \item The outputs of the error amplifiers are connected to the
-  non-inverting inputs of the SCP comparator, which checks that input
+  non-inverting inputs of the SCP comparator, which checks them
   against an internally-generated \qty{1.1}{\volt} supply connected to
   the inverting input.
 \item When the load is stable and not changing, the error amplifier's
@@ -228,8 +269,10 @@ confuse the SCP circuitry with the \chippin{SCP} pin):
   current becomes very high and resistance goes low), causing a
   voltage below \qty{1.1}{\volt} to be supplied to the non-inverting
   input, the SCP comparator will output a ``low'' signal, switching an
-  internal transistor off. This will discharge the \chippin{SCP} pin,
-  and the SCP comparator will charge capacitor $C_1$ by this formula:
+  internal transistor off. This will drop the \chippin{SCP} pin to
+  ground, discharging $C_1$ (\qty{50}{\milli\volt} is very little
+  voltage, so $C_1$ will discharge rapidly). The SCP comparator will
+  then recharge $C_1$ by this formula:
 
 \begin{displaymath}
   V_{PE} = \qty{50}{\milli\volt} + t_{PE} \times
@@ -254,7 +297,7 @@ where
   $t_{PE}$) an internal latch is set. This enables the under-voltage
   lockout circuit, which turns off both output transistors and sets
   the dead time on both outputs to \qty{100}{\%}---together, this
-  disables any current to the regulators and saves the load from a
+  disables any current to the switchers and saves the load from a
   short.
 \item Once the under-voltage lockout is enabled, the protection enable
   is released, but the latch won't reset until power is turned
@@ -262,9 +305,11 @@ where
 \end{enumerate}
 
 The under-voltage lockout circuit is actually a \emph{different}
-feature of the \model{MB3775}, designed to shut off the outputs if
-\Vcc{} falls beneath a \qty{2.5}{\volt} internally-generated reference
-voltage. The SCP circuitry simply controls the lockout latch.
+feature of the \model{MB3775}, designed to latch and shut off the
+outputs if \Vcc{} falls beneath a \qty{2.5}{\volt}
+internally-generated reference voltage. The SCP circuitry simply
+controls the lockout latch, gaining control over the output of the
+entire chip.
 
 Point 1 means that if \emph{either} of the chip's outputs trigger the
 short condition, then the entire chip will power down, turning off
@@ -278,23 +323,24 @@ $t_{PE} = \qty{0.06}{\second}$. I suspect it's configured this way so
 that the large initial load generated by starting the florescent tube
 doesn't trigger the SCP.
 
+% maybe todo: should we discuss the DTC comparator and SCP?
 Note: the SCP is really just a simple load monitor. This works because
 a short circuit will drastically change the load, and so tuning the
 SCP to some desired configuration will allow it to discriminate
 between the normal load and an undesired load (like a short circuit, or
 a component malfunction).
 
-Finally, I think $C_1$ is tantalum because tantalum capacitors are
-small, and the power board is jam-packed with components.
+I don't know why $C_1$ is tantalum. Possibly to save space on the board.
 
 \section{\qty{5}{\volt} Generation}
 \subsection{Voltage Setting}
 The \qty{5}{\volt} supply is created with the first PWM generator on
-the \model{MB3775} and the switching step-down regulator built around $Q_3$.
+the \model{MB3775} and the switching step-down regulator built around
+$Q_3$.
 
 The positive input of the error amplifier, \chippin{IN1+}, is
 connected to the output of a voltage divider created by $R_{14}$ and
-$R_{15}$, creating a negative feedback loop. This controls the error
+$R_{15}$, creating a feedback loop. This controls the error
 amplifier's output, and this output is internally fed into the first
 PWM comparator. These two components set the pulse width of the output
 PWM wave, controlling the regulator.
@@ -306,9 +352,9 @@ contains this equation, relating the values of the resistors in the
 divider to the output voltage:
 
 \begin{displaymath}
-  V_0 = V_{ref}(1+\frac{R_{15}}{R_{14}}) =
-  1.28(1+\frac{\qty{20}{\kilo\ohm}}{\qty{6.8}{\kilo\ohm}})
-  = 1.28(1+2.941) = \qty{5.045}{\volt}.
+  V_0 = V_{ref}\left(1+\frac{R_{15}}{R_{14}}\right) =
+  \qty{1.28}{\volt}\left(1+\frac{\qty{20}{\kilo\ohm}}{\qty{6.8}{\kilo\ohm}}\right)
+  = \qty{1.28}{\volt}\times{}(1+2.941) = \qty{5.045}{\volt}.
 \end{displaymath}
 
 Note that $R_{14}$ and $R_{15}$ are \qty{1}{\%} accuracy resistors, to
@@ -321,32 +367,35 @@ ensure that the output voltage from the chip is stable at
 The max duty cycle is tuned with the \chippin{DTC1} (dead time
 control) pin. Page 14 of the datasheet shows that the adjustment is
 accomplished with another voltage divider, made with $R_{10}$ and
-$R_{11}$, which are $R_a$ and $R_b$ respectively. Given
+$R_{11}$, which are $R_a$ and $R_b$ respectively. We find a maximum
+duty cycle of
 
 \begin{displaymath}
-  V_{dt} = \frac{R_b}{R_a+R_b} \times{} V_{ref} =
-  \frac{\qty{12}{\kilo\ohm}}{\qty{33}{\kilo\ohm} + \qty{12}{\kilo\ohm}} \times{}
-  \qty{1.28}{\volt} = \qty{0.341}{\volt},
+  \frac{\qty{1}{V} - V_{dt}}{\qty{0.6}{V}}
+  \times{} 100 = \qty{109}{\%},
 \end{displaymath}
 
 \noindent
-we find
+given
 
 \begin{displaymath}
-  \mathrm{Duty Max \%} = \frac{\qty{1}{V} - V_{dt}}{\qty{0.6}{V}}
-  \times{} 100 = \qty{109}{\%}.
+  V_{dt} = V_{ref}\left(\frac{R_b}{R_a+R_b}\right) =
+  \qty{1.28}{\volt}\left(
+  \frac{\qty{12}{\kilo\ohm}}{\qty{33}{\kilo\ohm} +
+    \qty{12}{\kilo\ohm}}\right) = \qty{0.341}{\volt},
 \end{displaymath}
 
 This sets the max duty cycle to 100\%, with a little bit of
 headroom. The \model{MB3775} datasheet says that the max duty cycle
 only needs to be set for a step-up regulator, a ``flyback step-up
-regulator,'' and an inverting regulator. The \qty{5}{\volt} regulator
-is step-down (see Section \ref{sec:step-down_regulator}), so the max
-duty cycle is just set to \qty{100}{\%}.
+regulator,'' and an inverting regulator. As the \qty{5}{\volt}
+regulator is step-down (see Section \ref{sec:step-down_regulator}),
+the max duty cycle is just set to \qty{100}{\%}, bypassing the
+functionality.
 
 \subsection{Actual Duty Cycle}
 The real duty cycle is dependent on the input voltage, according to
-datasheet page 15 (assuming an input voltage of \qty{9}{\volt}):
+datasheet page 15. Assuming an input voltage of \qty{9}{\volt}, it is
 $\frac{V_O}{V_{cc}}\times{}100 = \frac{5}{9}\times{}100 =
 \qty{55.6}{\%}$.
 
@@ -358,8 +407,9 @@ Also note that having the max duty cycle at a value of \qty{100}{\%}
 means that the actual duty cycle can technically be anything (though
 it will only be \qty{100}{\%} if \Vcc{} is \qty{5}{\volt}). If it were
 \qty{100}{\%}, $Q_3$ would always be on, making the voltage difference
-across $L_2$ would be 0, turning it into a wire. Then the output
-voltage would be \qty{5}{\volt}, same as the input.
+across $L_2$ be \qty{0}{\volt}. This would cause $L_2$ to become
+effectively a small, high-power resistor. Then the output voltage
+would be \qty{5}{\volt}, same as the input.
 
 I think, then, that setting the max duty cycle to \qty{100}{\%} allows
 \qty{5}{\volt} to be generated even if \Vcc{} is quite low. If you
@@ -368,14 +418,15 @@ power a Game Gear with \qty{6}{\volt} or even less on \Vcc{}.
 
 
 \subsection{Error Amplifier Frequency Characteristic}
+% $C_P$ adjusts the phase compensation of the amp.
 Figure 22 on page 21 of the \model{MB3775} datasheet shows the
-feedback pin, FB1, going to ground through a capacitor $C_P$. For the
-\qty{5}{\volt} regulator, $C_P = C_8 = \qty{0.1}{\micro\farad}$. This
-value is really just a default, as specified in the datasheet, and it
-configures the roll-off frequency of the error amplifier. At
-\qty{0.1}{\micro\farad}, the amplifier is configured to have
-\qty{0}{\decibel} gain between \qty{20}{\kilo\hertz} and
-\qty{5}{\mega\hertz}.
+feedback pin, \chippin{FB1}, going to ground through a capacitor
+$C_P$. For the \qty{5}{\volt} regulator,
+$C_P = C_8 = \qty{0.1}{\micro\farad}$. This value is really just a
+default, as specified in the datasheet, and it configures the roll-off
+frequency of the error amplifier.  $C_8 = \qty{0.1}{\micro\farad}$
+sets the amplifier to have \qty{0}{\decibel} gain between
+\qty{20}{\kilo\hertz} and \qty{5}{\mega\hertz}.
 
 \subsection{The Step-down Switching Regulator}
 \label{sec:step-down_regulator}
@@ -383,9 +434,9 @@ The PWM output from the \chippin{OUT1} pin is not enough to actually
 make a \qty{5}{\volt} supply. It isn't constant, it's low current, and
 is likely unpredictable without the error amplifier configured
 properly. Instead, it is meant to be used as the input to the base of
-a transistor in a simple step-down switching regulator. The regulator
-is made out of $Q_3$, $D_3$, $L_2$, $C_{12}$, and $C_{13}$. It works
-like this:
+a transistor in a simple step-down switching regulator. For the
+\qty{5}{\volt} circuit, the regulator is made out of $Q_3$, $D_3$,
+$L_2$, $C_{12}$, and $C_{13}$. It works like this:
 
 \begin{enumerate}
 \item When $Q_3$ is on, a linearly increasing current will flow
@@ -400,25 +451,35 @@ like this:
   capacitor into the load.
 \end{enumerate}
 
-$C_{13}$ is also present to reduce the voltage ripple caused by the
+$D_3$ is a Hitachi \model{HRF22} Schottky diode. While Schottky diodes
+have low forward voltage, they are also able to switch very fast
+($\approx{}\qty{100}{\pico\second}$). This allows the diode's bias to
+change as quickly as possible once the voltage from $L_2$ changes.
+
+$C_{13}$ is present to reduce the voltage ripple caused by the
 constant charging and discharging of $L_2$. This explains why it is so
 large: it has to be able to continue powering a large load while the
 inductor is discharging, during the time $Q_3$ is off.
 
+Finally, $C_{12}$ seems irrelevant next to $C_{13}$. I believe it is
+present to reduce very small ripples, which would be far too small for
+$C_{13}$ to have any impact on.
+
 \subsection{$Q_3$ submodel}
 \label{sec:q3_submodel}
-On the schematic, $Q_3$ has a little sidenote saying ``\texttt{ZQ or
-  ZP}.'' This is the submodel of the transistor---i.e., a 2SC1301ZQ or
-a 2SC1301ZP, and it controls the $h_{FE}$ range of the particular
-unit. A -ZQ unit will have an $h_{FE}$ range of 200 to 400, and a -ZP
-unit will have an $h_{FE}$ range of 300 to 600. This constraint is
-present to make sure that there will be enough current out of the
-collector ($I_C = I_Bh_{FE}$). The one other submodel is the -ZR,
-which has an $h_{FE}$ range of 135--270. Using Section
-\ref{sec:current_draw}, I assume that \qty{300}{\milli{}A} is drawn
-from the \qty{5}{\volt} rail. The upper limit of $h_{FE} = 270$ for
-the -ZR model might not be enough to power the whole of the
-\qty{5}{\volt} rail, so only the models with higher $h_{FE}$ are used.
+On both schematics, $Q_3$ has a note that says ``\texttt{ZQ or ZP}.''
+This is the submodel of the transistor---i.e., either a
+\model{2SC1301ZQ} or a \model{2SC1301ZP}, and it controls the $h_{FE}$
+range of the particular unit. A \model{-ZQ} unit will have an $h_{FE}$
+range of 200 to 400, and a \model{-ZP} unit will have an $h_{FE}$
+range of 300 to 600. This constraint is present to make sure that
+there will be enough current out of the collector ($I_C =
+I_Bh_{FE}$). The one other submodel is the \model{-ZR}, which has an
+$h_{FE}$ range of 135--270. Using Section \ref{sec:current_draw}, I
+assume that \qty{300}{\milli{}A} is drawn from the \qty{5}{\volt}
+rail. The upper limit of $h_{FE} = 270$ for the \model{-ZR} model
+might not be enough to power the whole of the \qty{5}{\volt} rail, so
+only the models with higher $h_{FE}$ are used.
 
 \section{\qty{34}{\volt} Generation}
 The \qty{34}{\volt} supply is low-current DC, used only to power the
@@ -434,14 +495,15 @@ $R_7$ and $R_8$ control the output voltage in a fashion identical to
 that of the \qty{5}{\volt} circuit:
 
 \begin{displaymath}
-  V_0 = V_{ref}(1+\frac{R_7}{R_8}) =
-  1.28(1+\frac{\qty{110}{\kilo\ohm}}{\qty{4.3}{\kilo\ohm}}) = \qty{34.024}{\volt}
+  V_0 = V_{ref}\left(1+\frac{R_7}{R_8}\right) =
+  \qty{1.28}{\volt}\left(1+\frac{\qty{110}{\kilo\ohm}}{\qty{4.3}{\kilo\ohm}}\right)
+  = \qty{34.024}{\volt}
 \end{displaymath}
 
 \subsection{Max Duty Cycle}
 As this is a step-up regulator (see Section
 \ref{sec:34v_actual_duty_cycle}), the max duty cycle should be
-configured. It is set to
+configured to something beneath \qty{100}{\%}. It is set to
 
 \begin{displaymath}
   \frac{\qty{1}{\volt} - V_{dt}}{\qty{0.6}{\volt}} \times{} 100 = \qty{70.67}{\%}
@@ -462,9 +524,9 @@ and
 % sense, as the graph on the next page shows that Vdt=0.576 V will
 % result in about 78% max duty cycle.
 \begin{displaymath}
-  V_{dt} = \frac{R_b}{R_a+R_b} \times{} V_{ref} =
-  \frac{\qty{27}{\kilo\ohm}}{\qty{33}{\kilo\ohm} +
-    \qty{27}{\kilo\ohm}} \times \qty{1.28}{\volt} = \qty{0.576}{\volt}.
+  V_{dt} =  V_{ref}\left(\frac{R_b}{R_a+R_b}\right) =
+  \qty{1.28}{\volt}\left(\frac{\qty{27}{\kilo\ohm}}{\qty{33}{\kilo\ohm} +
+      \qty{27}{\kilo\ohm}}\right) = \qty{0.576}{\volt}.
 \end{displaymath}
 
 Note: page 14 of the \model{MB3775} datasheet says that ``if no output
@@ -485,8 +547,9 @@ even be incorrect.
 \label{sec:34v_actual_duty_cycle}
 Using the second equation from datasheet page 15, we find the actual
 duty cycle to be
-$\frac{V_O - V_{cc}}{V_O} \times{} 100 = \frac{34 - 9}{34} \times{}
-100 = \qty{73.5}{\%}$, given a \Vcc{} of \qty{9}{\volt}.
+$\frac{V_O - V_{cc}}{V_O} \times{} 100 = \frac{\qty{34}{\volt} -
+  \qty{9}{\volt}}{\qty{34}{\volt}} \times{} 100 = \qty{73.5}{\%}$,
+given a \Vcc{} of \qty{9}{\volt}.
 
 % If Vcc drops beneath about 8 volts, the duty cycle will be above the
 % max. In this case, it will stay fixed at 70.67%.
@@ -498,9 +561,9 @@ $\frac{V_O - V_{cc}}{V_O} \times{} 100 = \frac{34 - 9}{34} \times{}
 % the high-voltage boost is never generated.
 
 The max duty cycle is important for this regulator, unlike the
-\qty{5}{\volt} regulator. According to the \model{MB3775} datasheet,
-it is possible for the feedback pin (\chippin{FB2}) of the error
-amplifier to go below the voltage of the internally-generated
+\qty{5}{\volt} regulator. According to the \model{MB3775} datasheet
+(page 14), it is possible for the feedback pin (\chippin{FB2}) of the
+error amplifier to go below the voltage of the internally-generated
 triangular wave (the feedback pin is connected to the error amplifier
 output within the chip). This causes the chip's output transistor to
 stay switched on, and keeps $Q_1$ and $Q_2$ switched on as well. When
@@ -508,17 +571,17 @@ this happens, $L_1$ is never discharged, and the boosted output
 voltage is not generated.
 
 \subsection{Error Amplifier Frequency Characteristic}
-$C_3$ is identical to $C_8$, and so the gain between
-\qty{20}{\kilo\hertz} and \qty{5}{\mega\hertz} is
-\qty{0}{\decibel}.
+$C_3$ is identical to $C_8$, so the gain between \qty{20}{\kilo\hertz}
+and \qty{5}{\mega\hertz} is \qty{0}{\decibel}.
 
 \subsection{Soft Start Time}
+\label{sec:soft_start_time}
 The soft start time for the \qty{34}{\volt} half of the chip is set
 with $C_2$, a \qty{0.1}{\micro\farad} capacitor. The rather large
 equation from page 16 of the datasheet gives
 
 \begin{displaymath}
-  \frac{-C_2R_aR_b}{R_aR_b}V_{cc}\frac{1-0.7(R_a+R_b)}{1.28R_a}
+  V_{cc}\left(\frac{-C_2R_aR_b}{R_a+R_b}\right)\left(\frac{1-0.7(R_a+R_b)}{1.28R_a}\right)
   = \qty{0.013}{\second}.
 \end{displaymath}
 
@@ -526,27 +589,33 @@ equation from page 16 of the datasheet gives
 where
 \begin{displaymath}
   C_2 = \qty{0.1}{\micro\farad},R_a =
-  \qty{33}{\kilo\ohm},R_b=\qty{27}{\kilo\ohm},V_{cc} \approx{} \qty{9}{\volt}.
+  \qty{33}{\kilo\ohm},R_b=\qty{27}{\kilo\ohm},V_{cc} = \qty{9}{\volt}.
 \end{displaymath}
 
 The soft start time is the time from power-on until the duty cycle
-reaches \qty{50}{\%}. It minimizes the amount of initial current drawn
-by the switcher (and at \qty{34}{\volt}, an inductor as large as $L_1$
-could draw a lot of current, starting from 0). This has two effects on
-the circuit:
+reaches \qty{50}{\%}. Configuring it causes the chip to slowly
+increase the duty cycle during $t_{PE}$, minimizing the amount of
+initial current drawn by the switcher. At \qty{34}{\volt}, an inductor
+as large as $L_1$ draws a lot of current when it starts from 0, so the
+soft start is a protection measure.
+
+This has two effects on the circuit:
 
 \begin{enumerate}
 \item The \qty{5}{\volt} regulator will be fully functional before the
   \qty{34}{\volt} regulator is. The status of the \qty{5}{\volt}
   regulator wouldn't be an issue, except for the fact that $L_1$ is
   connected to $Q_3$'s base.
-\item A slow start will allow the current drawn by the \qty{34}{\volt}
-  regulator to ramp up slowly, so that there is minimal voltage drop
-  on \Vcc{}. 
+\item A slow startup will allow the current drawn by the
+  \qty{34}{\volt} regulator to ramp up slowly, so that there is
+  minimal voltage drop on \Vcc{}. This ensures that the circuit isn't
+  starved for voltage on power-on.
 \end{enumerate}
 
-The \qty{5}{\volt} regulator doesn't have any configured soft start
-because $L_2$ is so comparatively small.
+The \qty{5}{\volt} regulator has a configured soft start in the
+\model{VA0} schematic, but not in the \model{VA1} schematic. I think
+it was removed because $L_2$ isn't very big, and so doesn't pose a
+threat to the voltage of \Vcc{} on startup.
 
 \subsection{The Step-up Switching Regulator}
 \label{sec:step-up_regulator}
@@ -564,34 +633,45 @@ controlled by the PWM output of the \model{MB3775}, on pin
   causing the current in the coil to increase. During this time, only
   current stored in $C_5$ is delivered to the load.
 \item When the two transistors turn off, $L_1$'s decreasing current
-  causes the anode of $D_2$ to become forward biased, and current from
-  both $L_1$ and $C_5$ is delivered to the load.
+  increases the voltage on the anode of $D_2$, causing it to become
+  forward biased. Current from both $L_1$ and $C_5$ is delivered to
+  the load.
 \end{enumerate}
 
-All in all, this makes a smooth and steady high-voltage supply.
+All in all, this makes a smooth and steady high-voltage supply. Like
+in the \qty{5}{\volt} regulator, the small ceramic $C_4$ is present to
+reduce small ripples. $D_2$ is identical to $D_1$ (see Section
+\ref{sec:step-down_regulator}), for fast switching.
 
 One oddity of this regulator is that it uses two transistors, as
-opposed to one, like a normal step-up switcher design does. I'm not
-completely sure why this is done.
+opposed to one, like a normal step-up switcher design does. The
+reasoning for this is simple. Page 4 of the datasheet shows the block
+diagram of the \model{MB3775}, and shows that \chippin{OUT1} and
+\chippin{OUT2} are \textit{open collector outputs}, meaning that they
+are connected to the collector of an NPN transistor (these transistors
+are the same as those controlled by SCP). The emitter of those
+transistors is connected to ground, and the base is connected to the
+switching circuitry.
 
-One speculation I have is that the two-transistor technique prevents
-the circuit exceeding the maximum base-to-emitter voltage of $Q_2$,
-which is only \qty{5}{\volt}. Assuming \Vcc{}$=\qty{9}{\volt}$, the
-voltage from $Q_1$'s collector is about \qty{8.5}{\volt}. The divider
-made from $R_5$ and $R_6$ will make the voltage into the base of $Q_2$
-$\frac{\qty{1}{\kilo\ohm}}{\qty{1}{\kilo\ohm} +
-  \qty{2.2}{\kilo\ohm}}\times{}\qty{8.5}{\volt} = \qty{2.66}{\volt}$,
-which is well beneath the maximum ($Q_2$'s emitter is connected to
-ground).
+Think about it like this: if $Q_1$ weren't present and the collector
+of $Q_2$ was connected directly to \chippin{OUT2}, then no current
+would ever flow. When the transistor inside the chip turns on,
+\chippin{OUT2} is connected to ground. This would enable $Q_2$,
+connecting its collector to ground, along with $L_1$ and $D_3$. No
+current flows in this condition, and the switcher doesn't work.
 
-This still doesn't explain why the division had to be done with
-another transistor, though, so I feel that it's not complete or
-accurate.
+Using PNP transistor $Q_1$ allows current to flow when \chippin{OUT2}
+goes to ground. When this happens, current will flow from the emitter
+to the base of $Q_2$, switching $Q_2$ on. Current will then flow from
+$Q_2$'s emitter to its collector, switching $Q_2$ on and enabling the
+switcher.
 
-% TODO: the high Vce and Vcb of Q2 allow it to handle the large
-% voltage that comes out of the inductor. But why does Q1 also have
-% the tolerance for those voltages? just because it's the
-% complementary transistor?
+This is also why the \qty{5}{\volt} supply also uses a PNP
+transistor. It's a simple way (and possibly the only way) to use the
+switching provided by the chip.
+
+% TODO: those four resistors are adjusting bias. how?
+% TODO: Q1 and Q2 are complementary; mention this.
 
 \subsection{$L_1$ and the \qty{5}{\volt} Supply}
 One choice in the design on this circuit, that seems odd at first
@@ -614,7 +694,7 @@ start time: the \qty{5}{\volt} supply should already be running
 steadily by the time the \qty{34}{\volt} supply and inductor begin
 regulating.
 
-Now, clearly the regulated output would never get much above
+Now, clearly the regulated output should never get much above
 \qty{34}{\volt} \textit{anyway}, since $C_5$ is only rated for
 \qty{35}{\volt}.
 % L1 is likely driven this way because the voltage out of Q3 is always
@@ -622,13 +702,15 @@ Now, clearly the regulated output would never get much above
 % be constant.
 \section{Current Draw}
 \label{sec:current_draw}
-My particular unit, which is a stock US \model{VA1} 837-9024 (except for a
-recap) draws about \qty{330}{\milli{}A} total when powered by a
+My particular unit, which is a stock \model{US VA1 837-9024} (except
+for a recap) draws about \qty{330}{\milli{}A} total when powered by a
 \qty{9}{\volt} wall supply. I think most of this current is actually
-drawn by the tube, and that the other circuitry does not draw much
-current. I also assume that \qty{300}{\milli{}A} is drawn by the
-\qty{5}{\volt} rail (though I have no evidence for this, it's just a
-guess).
+drawn by the tube, and that the other components and circuitry does
+not draw much current.
+
+For the purposes of the estimates in this section, I assume that
+\qty{300}{\milli{}A} is drawn by the \qty{5}{\volt} rail (though I
+have no evidence for this vale, it's just a guess).
 
 $Q_3$ has a maximum collector current of \qty{-3}{A}. This means it
 can supply up to \qty{3}{A}, sourced from the emitter. Even if all
@@ -636,8 +718,8 @@ can supply up to \qty{3}{A}, sourced from the emitter. Even if all
 collector), there would still be over \qty{2.5}{A} of leeway for other
 things to draw current from the \Vout{} line.
 
-This comes with a limitation, though: while $Q_3$ can supply that much
-current, it is limited further by the value of $h_{FE}$ (see Section
+This comes with a limitation, though: while $Q_3$ is rated to supply
+that much current, it is limited by the value of $h_{FE}$ (see Section
 \ref{sec:q3_submodel}). Which submodel of $Q_3$ is actually used is
 probably up to random chance, but assuming $I_B = \qty{1}{\milli{}A}$,
 the total \qty{5}{\volt} rail current shouldn't exceed
@@ -645,20 +727,22 @@ the total \qty{5}{\volt} rail current shouldn't exceed
 
 It's also probably not a good idea to draw from the \qty{34}{\volt}
 supply. Transistors $Q_1$ and $Q_2$ have a maximum collector current
-of \qty{-100}{\milli{}A} and \qty{100}{\milli{}A}, respectively. This
-comparatively small limit means that there probably isn't much space
-to draw more current (and converting \qty{34}{\volt} to something more
-useful is difficult anyway).
+of \qty{-100}{\milli{}A} and \qty{100}{\milli{}A}, respectively. They
+also don't have any limitation on submodel, so $h_{FE}$ could easily
+drop as low as 90 for $Q_1$ and 135 for $Q_2$. This comparatively
+small limit means that there probably isn't much space to draw more
+current (and converting \qty{34}{\volt} to something more useful is
+difficult anyway).
 
-There's also significant risk in drawing too much current from the
-batteries or the DC jack. The average alkaline AA is only designed for
-about a maximum current draw of \qty{1}{A}
-(\url{https://www.eevblog.com/forum/projects/maximum-aa-battery-current-draw/}. Even
-with less current than this, the batteries will likely start heating
-up, which is obviously dangerous. If you draw too much power from a
-wall wart, you would probably damage it too.
+There's also some risk in drawing too much current from the batteries
+or the DC jack. The average alkaline AA is only designed for an
+extended maximum current draw of about \qty{1}{A}
+(\url{https://www.eevblog.com/forum/projects/maximum-aa-battery-current-draw/}.
+Even with less current draw than this, the batteries will likely start
+heating up, which isn't safe for anything involved. Also, if you draw
+too much power from a wall wart, you could damage it too.
 
-Furthermore, drawing more current will reduce the battery life to
+Finally, drawing more current will reduce the battery life to
 something even more measly.
 
 \section{Documents and Sources}
@@ -684,7 +768,7 @@ something even more measly.
 
 \subsection{Schematics}
 \label{sec:documents_schematics}
-Console5 is probably the best source for schematics. The schematics
+I think Console5 is the best source for schematics. The schematics
 below are the ones you want if you're just going to be following along
 with this document:
 \begin{description}
@@ -694,14 +778,20 @@ with this document:
   \url{https://console5.com/techwiki/images/8/87/Game_Gear_VA1_Schematic_-_DC-DC_and_Sound.png}.
 \end{description}
 
-Note: the European \model{VA0} document is not the most readable, as it
-appears to have been hand-drawn. It also has some extra components,
+Unfortunately, I know of no scans of schematics for any other model
+(\model{VA4}, \model{VA5}, or Majesco). However, the minimal variation
+between the \model{VA0} and \model{VA1} schematics suggests that there
+are likely few changes.
+
+Note: the European \model{VA0} document is not the most readable, as
+it appears to have been hand-drawn. It also has some extra components,
 like $R_{18}$ and $R_{19}$ (and others), that aren't present in the
-\model{VA1} schematic. It also has a capacitor, $C_9$, to set the soft start
-time for the \qty{5}{\volt} generator. I don't know why this was
+\model{VA1} schematic. It also has a capacitor, $C_9$, to set the soft
+start time for the \qty{5}{\volt} generator. I don't know why this was
 removed from the \model{VA1} board.
 
-Other schematics, for the main board or other parts, are at
+Other schematics, for the main and sound boards (also only \model{VA0}
+and \model{VA1}), are at
 \url{https://console5.com/wiki/Game_Gear#Schematics}.
 
 The \model{VA1} documents are printed in a font that doesn't seem to
@@ -715,7 +805,7 @@ scale well. These are the ones I had the most trouble reading:
 \item[$J_V$ and $J_G$] A pair of \model{FBA04VA450AB-00}
   \qty{3.5}{\milli\meter} \qty{45}{\ohm} ferrite beads. The way the
   schematic is laid out, it suggests that $J_V$ is a different part,
-  but the tiny \texttt{*2} indicates that $J_V$ and $J_G$ are the
+  but the tiny ``\texttt{*2}'' indicates that $J_V$ and $J_G$ are the
   same.
 \end{description}
 
@@ -734,24 +824,23 @@ Analog Devices also has a good discussion of switchers:
 This Stack\-Ex\-change answer explains switched jacks very well:
 \url{https://electronics.stackexchange.com/a/90531}.
 
-I don't own a European unit, and I cannot seem to find the one website
-that said it was a 2.1/5.5 plug. However, I am confident that I
+I don't own a European unit, and I cannot seem to find the website I
+saw that said it was a 2.1/5.5 plug. However, I am confident that I
 remember it correctly.
 
-There are a number of sources for the dimensions of each region's DC
+There are many sources for the dimensions of each region's DC
 plug. Google ``game gear power jack dimensions'' and you'll find one
-like this: \url{https://www.reddit.com/r/game_gear/comments/gh6psb/what_polarity_is_the_gg_power_adapter}.
+like this:
+\url{https://www.reddit.com/r/game_gear/comments/gh6psb/what_polarity_is_the_gg_power_adapter}.
 
 \section{Remaining Questions}
 \label{sec:remaining_questions}
 \begin{itemize}
 \item What is the precise role of $Q_1$?
 \item How are $C_7$ and $R_9$ controlling the oscillator?
-\item Why is $t_{PE}$ so long?
-\item Are there any other reasons for $C_1$ to be tantalum? (Physical
-  properties, for example).
+\item Why is $t_{PE}$ so long? Just to accommodate a large load?
+\item Why is $C_1$ tantalum?
 \item At what \Vcc{} voltage does the main board start blinking the
   power LED?
-%\item Exactly why is $L_1$ supplied with the collector of $Q_3$?
 \end{itemize}
 \end{document}
