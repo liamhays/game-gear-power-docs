@@ -13,7 +13,9 @@
 \newcommand{\chippin}{\texttt}
 \newcommand{\model}{\textsf}
 
-% TODO: What is the LED blinking voltage?
+% TODO: what's the output voltage of the Car Adapter?
+% It's 800 mA at 9V
+
 
 \begin{document}
 \section{About This Document}
@@ -101,6 +103,7 @@ connector. It is filtered (and probably stabilized) beforehand with
 $C_{10}$ and $C_{11}$.
 
 \subsection{Batteries and Chemistry}
+\label{sec:batteries_chemistry}
 For this section, reference the graphs at
 \url{https://www.powerstream.com/AA-tests.htm}. The various battery
 facts and statistics I state here are from the graphs on this
@@ -135,6 +138,7 @@ it is close to fully discharged.
 % briefly power on if a cartridge wasn't inserted well? That sounds
 % like SCP to me.
 \subsection{DC Jack Switching}
+\label{sec:jack_switching}
 Note: this subsection describes the DC jack in an American Game
 Gear. For a European model (see Section \ref{sec:plug_dimensions}),
 switch the polarities of the jack.
@@ -165,6 +169,20 @@ The \model{VA0} schematic clears this up. It doesn't include $D_6$ at
 all, nor does it include the connection between DC jack pins 1 and
 2. This means that $D_6$ is completely extraneous, likely a remnant
 from some old design.
+
+\subsection{Switching While Powered On}
+The Game Gear can change power sources from the DC jack to the
+batteries (or vice versa) on the fly, while powered on. However, this
+causes the power to flicker for long enough that the console resets,
+on both plugging in and unplugging the DC plug.
+
+There probably isn't a good way to solve this aside from a very
+fast-switching diode (a Schottky diode or similar). What it does
+indicate, though, is that the recovery time for $D_1$ is longer than
+the frequency of the switcher on at least the \qty{5}{\volt} output,
+and probably the \qty{34}{\volt} output (I'm not sure of this, but the
+screen doesn't seem to flicker in the same way as it does when the
+console is power-cycled).
 
 \subsection{Plug Dimensions and Switch}
 \label{sec:plug_dimensions}
@@ -198,33 +216,74 @@ regions.
 \subsection{Input Voltage}
 This is an area that is actually very confusing, especially if you're
 trying to build your own power cord, like I did. The Game Gear case
-labels the power jack as \texttt{DC 9V}. However, the official Sega
-power supply (model \model{MK-2103}) for the Game Gear is
-\qty{10}{\volt}. Clearly, the voltages don't match---why doesn't this
-cause a problem?
+labels the power jack as \texttt{DC 9V}. The official Game Gear Car
+Adapter outputs \qty{9}{\volt}. However, the official Sega wall wart
+(model \model{MK-2103}) for the Game Gear is \qty{10}{\volt}. The
+voltages don't match---why doesn't this cause a problem?
 
 The exact input voltage doesn't matter too much, within reason,
 because:
 
 \begin{enumerate}
 \item An alkaline AA will only be at \qty{1.5}{\volt} for the first
-  few minutes of its life, at the discharge rate used by the Game
-  Gear. From there, it will slowly drop to about \qty{1}{\volt}, where
-  the voltage will drop sharply. This means that the voltage will be
-  at about $\qty{1.3}{\volt} \times{} 6 = \qty{7.8}{\volt}$, give or
-  take. This is clearly far beneath the optimal \qty{9}{\volt} (or
-  even \qty{10}{\volt}) that Sega suggests one should be using.
+  few minutes of its life (see Section \ref{sec:batteries_chemistry}),
+  at the discharge rate used by the Game Gear. From there, it slowly
+  drops. This means that the average input voltage will be about
+  $\qty{1.3}{\volt} \times{} 6 = \qty{7.8}{\volt}$. Clearly, this is
+  far beneath the optimal \qty{9}{\volt} (or even \qty{10}{\volt})
+  that Sega suggests one should be using, but the console is tolerant
+  and works fine.
 \item The \model{MB3775} can operate from \qty{3.6}{\volt} to
-  \qty{18}{\volt}. 
-\item The error amplifier means that the precise value of \Vcc{}
-  doesn't matter (within reasonable limit), as the chip's output will
-  adjust to compensate.
+  \qty{18}{\volt}. It is designed to significantly adjust the
+  switching regulators in response to \Vcc{}, among other factors.
+%\item The error amplifier means that the precise value of \Vcc{}
+%  doesn't matter (within reasonable limit), as the chip's output will
+%  adjust to compensate.
 \end{enumerate}
 
-All this is to say that the power circuit is designed to work fine
-with a significant (at least $\pm{}\qty{2}{\volt}$, and probably even
-greater) deviation in \Vcc{} voltage. 
+All this is to say that the power circuit is designed to work with a
+significant (at least $\pm{}\qty{2}{\volt}$, and probably even
+greater) deviation in \Vcc{} voltage. For example, I powered my unit
+with \qty{12}{\volt} and it worked perfectly.
 
+\subsection{Low Voltage Threshold}
+When the ASIC (or the non-video ASIC in a \model{VA0}) detects low
+input voltage, it blinks the red power LED to notify the user. If the
+voltage drops even further, the entire console shuts off. I have
+determined the voltages where these behaviors occur. For this
+experiment, I built a small adjustable regulator with a \model{LM317},
+and connected the regulated output to both the DC jack on my Game Gear
+and a voltmeter. The initial input voltage was \qty{10.07}{\volt}, and
+I turned down the voltage until the console's behavior changed.
+
+This is what I observed:
+
+\begin{description}
+\item[input voltage above \qty{6.8}{\volt}] The LED is fully on.
+\item[\qty{6.8}{\volt}--\qty{6.4}{\volt}] The LED blinks, but when it
+  is in the ``off'' state, it is not fully off---instead, it is dim
+  and flickering.
+\item[\qty{6.4}{\volt}--\qty{6}{\volt}] The LED blinks and it is fully
+  off in the ``off'' state.
+\item[\qty{6}{\volt} and below] The console shuts off completely.
+\end{description}
+
+I believe the shutdown below \qty{6}{\volt} is triggered by the
+under-voltage lockout. However, as far as I can tell, the
+under-voltage lockout is only triggered when \Vcc{} falls beneath
+about \qty{2.6}{\volt}, which is obviously much lower than the
+\qty{6}{\volt} threshold I observed. I do not know the precise
+cause of the shutoff.
+
+% These values were almost surely configured on the basis of an alkaline
+% AA's discharge profile (Section \ref{sec:batteries_chemistry}). For
+% example, a total input voltage of \qty{6}{\volt} corresponds to
+% \qty{1}{\volt} per battery. At a \qty{500}{\milli{}A} discharge rate,
+% \qty{1}{\volt} output is just before the battery voltage drops
+% rapidly (see the AA discharge graphs). This is probably a safety
+% measure, to make sure that the console 
+
+% Note above: at least, I think so. It may be just a result of the uvlo.
 \subsection{Compatible Plugs}
 I do not have a European Game Gear, but I assume that an Arduino or
 similar power supply would work fine, as Arduinos use the same size
@@ -344,6 +403,7 @@ a component malfunction).
 
 I don't know why $C_1$ is tantalum. Possibly to save space on the board.
 
+% 
 \subsection{Capacitor ESR}
 The \model{MB3775} datasheet warns that electrolytic smoothing
 capacitors with low equivalent series resistance (ESR) can create
@@ -884,12 +944,12 @@ like this:
 \item How are $C_7$ and $R_9$ controlling the oscillator?
 \item Why is $t_{PE}$ so long? Just to accommodate a large load?
 \item Why is $C_1$ tantalum?
-\item At what \Vcc{} voltage does the main board start blinking the
-  power LED?
 \end{itemize}
 
 \section{Revision History}
 \begin{description}
-\item[v1.0] First release.
+\item[v1.0, July 2021] First release.
+\item[v1.1, September 2021] Added information on running a Game Gear
+  at \qty{12}{\volt}, and added the section on the low voltage thresholds.
 \end{description}
 \end{document}
