@@ -6,6 +6,7 @@
 \usepackage[normalem]{ulem}
 \usepackage{siunitx}
 \usepackage{graphicx}
+\usepackage[letterpaper, top=2.5cm]{geometry}
 \setmainfont{TeX Gyre Pagella}
 \newcommand{\Vcc}{$V_{cc}$}
 \newcommand{\Vout}{$V_{out}$}
@@ -127,7 +128,7 @@ a full blinking mode (see Section \ref{sec:low_voltage}) once NiMH
 batteries are low. It starts flashing in the ``not fully off'' mode,
 and never reaches the ``fully off'' mode before the whole unit powers
 down. This exact behavior is, however, probably dependent on NiMH
-battery construction, health, and even brand.
+battery construction, health, and even brand. 
 
 The \model{MB3775} is responsible for turning the console off when
 \Vcc{} is beneath \qty{2.5}{\volt} (see Section \ref{sec:scp}). \Vcc{}
@@ -137,7 +138,7 @@ or a regulated output, but to a pin on the main ASIC (either the
 larger one or the only one, depending on board revision). This chip is
 in control of the power LED, and blinks it once \Vcc{} reaches some
 threshold voltage. I suspect that this threshold is around
-\qty{5}{\volt}, resulting in a per-cell voltage of about
+\qty{5}{\volt}, resulting in an average per-cell voltage of about
 \qty{0.8}{\volt}. This is close to the voltage of an alkaline AA when
 it is close to fully discharged.
 
@@ -183,14 +184,14 @@ batteries (or vice versa) on the fly, while powered on. However, this
 causes the power to flicker for long enough that the console resets,
 on both plugging in and unplugging the DC plug.
 
-The most likely explanation for this is that the time needed for a
-stable connection to be established in the jack \textit{and} for both
-the DC supply and the Game Gear to both stabilize is too long for the
-switchers in the Game Gear.
+This is probably because the ability to change sources is due to the
+switched jack, and as the plug is inserted, the switch is left in a
+floating position and there is no input current at all.
 
-The screen doesn't seem to flicker in the same way as it does when the
-console is power-cycled, so the \qty{34}{\volt} supply may be more
-resilient---perhaps an effect of the gigantic inductor $L_1$.
+Interestingly, the screen doesn't seem to flicker in the same way as
+it does when the console is power-cycled via the switch, so the
+\qty{34}{\volt} supply may be quite resilient---perhaps an effect of
+the gigantic inductor $L_1$.
 
 \subsection{Plug Dimensions and Switch}
 \label{sec:plug_dimensions}
@@ -335,16 +336,16 @@ here.
 I'm confident that the Game Gear's short circuit protection (SCP) is
 actually the heart of a common mistake or rumor: the ASIC(s) on the
 main board \emph{do not} protect the console from shorts or power
-problems. Instead, the protection is all within the power board, and
-basically entirely enclosed in the \model{MB3775}. The SCP circuitry
-works like this (don't confuse the SCP circuitry with the
-\chippin{SCP} pin):
+problems. Instead, the protection is all within the power board.
+
+The SCP circuitry works like this (don't confuse the SCP circuitry
+with the actual \chippin{SCP} pin):
 
 \begin{enumerate}
 \item The outputs of the error amplifiers are connected to the
-  non-inverting inputs of the SCP comparator, which checks them
-  against an internally-generated \qty{1.1}{\volt} supply connected to
-  the inverting input.
+  non-inverting inputs of the \textit{SCP comparator}, which checks
+  those outputs against an internally-generated \qty{1.1}{\volt}
+  supply connected to the inverting input.
 \item When the load is stable and not changing, the error amplifier's
   output will not fluctuate (the current draw is steady, and the
   voltage has stabilized). Under this condition, the \chippin{SCP} pin
@@ -354,9 +355,9 @@ works like this (don't confuse the SCP circuitry with the
   voltage below \qty{1.1}{\volt} to be supplied to the non-inverting
   input, the SCP comparator will output a ``low'' signal, switching an
   internal transistor off. This will drop the \chippin{SCP} pin to
-  ground, discharging $C_1$ (\qty{50}{\milli\volt} is very little
-  voltage, so $C_1$ will discharge rapidly). The SCP comparator will
-  then recharge $C_1$ by this formula:
+  ground, discharging $C_1$ (because the capacitor was charged with
+  only \qty{50}{\milli\volt}, $C_1$ will discharge rapidly). The SCP
+  comparator will then recharge $C_1$ by this formula:
 
 \begin{displaymath}
   V_{PE} = \qty{50}{\milli\volt} + t_{PE} \times
@@ -370,19 +371,19 @@ where
   V_{PE} = \qty{0.65}{\volt}, C_{PE} = C_1 = \qty{0.68}{\micro\farad}
 \end{displaymath}
 
-($V_{PE}$ is set within the chip) and
+($V_{PE}$ is permanently set within the chip) and
 
 \begin{displaymath}
   C_{PE} = \frac{t_{PE}}{\qty{0.6}{\micro\farad}}
   \rightarrow{} t_{PE} = \qty{0.408}{\second}.
 \end{displaymath}
 
-\item Once $C_1$ has charged to voltage $V_{PE}$ (which occurs in time
-  $t_{PE}$) an internal latch is set. This enables the under-voltage
-  lockout circuit, which turns off both output transistors and sets
-  the dead time on both outputs to \qty{100}{\%}---together, this
-  disables any current to the switchers and saves the load from a
-  short.
+\item Once $C_1$ has charged to voltage \qty{0.65}{\volt} (which
+  occurs in time $t_{PE}$) an internal latch is set. This enables the
+  under-voltage lockout circuit, which turns off both output
+  transistors and sets the dead time on both outputs to
+  \qty{100}{\%}---together, this disables any current to the switchers
+  and saves the load from a short.
 \item Once the under-voltage lockout is enabled, the protection enable
   is released, but the latch won't reset until power is turned
   off. The chip won't restore power until it's removed and re-applied.
@@ -392,29 +393,33 @@ The under-voltage lockout circuit is actually a \emph{different}
 feature of the \model{MB3775}, designed to latch and shut off the
 outputs if \Vcc{} falls beneath a \qty{2.5}{\volt}
 internally-generated reference voltage. The SCP circuitry simply
-controls the lockout latch, gaining control over the output of the
+controls that lockout latch, gaining control over the output of the
 entire chip.
 
-Point 1 means that if \emph{either} of the chip's outputs trigger the
-short condition, then the entire chip will power down, turning off
-both outputs.
+Point 1 above means that if \emph{either} of the chip's outputs
+trigger the short condition, then the entire chip will power down,
+turning off both outputs.
 
 Point 4 above means that the SCP comparator will only output the
-``low'' signal if the voltage drops beneath \qty{1.1}{\volt} for
-$t_{PE} = 0.408$ seconds. To me, this seems like a long time,
-especially since the example circuits in the datasheet have
-$t_{PE} = \qty{0.06}{\second}$. I suspect it's configured this way so
-that the large initial load generated by starting the florescent tube
-doesn't trigger the SCP.
+``low'' signal and switch off the outputs if the voltage drops beneath
+\qty{1.1}{\volt} for $t_{PE} = 0.408$ seconds. To me, this seems like
+a long time, especially since the example circuits in the datasheet
+have a much shorter $t_{PE}$ of \qty{0.06}{\second}. I suspect it's
+configured this way so that the large initial load generated by
+starting the florescent tube doesn't trigger the SCP.
 
 % maybe todo: should we discuss the DTC comparator and SCP?
-Note: the SCP is really just a simple load monitor. This works because
-a short circuit will drastically change the load, and so tuning the
-SCP to some desired configuration will allow it to discriminate
-between the normal load and an undesired load (like a short circuit, or
-a component malfunction).
+The SCP is really just a simple load monitor. This works because a
+short circuit will drastically change the load, so tuning the SCP to
+some desired configuration will allow it to discriminate between the
+normal load and an undesired load, like a short circuit.
 
-%I don't know why $C_1$ is tantalum. Possibly to save space on the board.
+$C_1$ is a tantalum capacitor because tantalum capacitors have low
+leakage current. Because the SCP relies on accurately charging a
+capacitor within a specific time period, the capacitor should not leak
+much current. If it is too leaky, the voltage on the \chippin{SCP} pin
+will not reach $V_{PE}$ in the correct amount of time, and a load could
+malfunction for too long before power is removed and cause damage.
 
 \subsection{Capacitor ESR}
 The \model{MB3775} datasheet warns that electrolytic smoothing
@@ -428,6 +433,7 @@ explains why the three electrolytics on the power board are all
 through-hole aluminum electrolytic capacitors.
 
 \section{\qty{5}{\volt} Generation}
+\label{sec:5v_generation}
 \subsection{Voltage Setting}
 The \qty{5}{\volt} supply is created with the first PWM generator on
 the \model{MB3775} and the switching step-down regulator built around
@@ -453,8 +459,7 @@ divider to the output voltage:
 \end{displaymath}
 
 $R_{14}$ and $R_{15}$ are \qty{1}{\%} accuracy resistors, to ensure
-that the output voltage from the chip is stable at \qty{5}{\volt} or
-very close.
+that the output voltage from the chip a stable \qty{5}{\volt}.
 
 % \texorpdfstring is according to https://tex.stackexchange.com/a/53514
 
@@ -586,13 +591,17 @@ might not be enough to power the whole of the \qty{5}{\volt} rail, so
 only the models with higher $h_{FE}$ are used.
 
 \section{\qty{34}{\volt} Generation}
-The \qty{34}{\volt} supply is low-current DC, used only to power the
-LCD. It is created with a step-up switching regulator, the inverse of
-the \qty{5}{\volt} step-down regulator.
+The \qty{34}{\volt} supply is low-current DC, used only for the LCD's
+bias and contrast circuit. The supply is created with a step-up
+switching regulator, using the second regulator controller in the
+\model{MB3775}. The step-up switcher is based around transistors $Q_1$
+and $Q_2$.
 
-Each component here is configured in the same way, albeit with
-different values, as the \qty{5}{\volt} circuit. See that section for
-specifics on each piece of the puzzle.
+Each component here is configured in a similar fashion, albeit with
+different values, to the \qty{5}{\volt} circuit. As a result, this
+section does not explain the operation of every component, in relation
+to the \model{MB3775}. See Section \ref{sec:5v_generation} for that
+information.
 
 \subsection{Voltage Setting}
 $R_7$ and $R_8$ control the output voltage in a fashion identical to
@@ -844,8 +853,8 @@ supply. Transistors $Q_1$ and $Q_2$ have a maximum collector current
 of \qty{-100}{\milli{}A} and \qty{100}{\milli{}A}, respectively
 (though again, $h_{FE}$ isn't creating a current limit). This
 comparatively small limit means that there probably isn't much space
-to draw more current (and converting \qty{34}{\volt} to something more
-useful is difficult anyway).
+to draw more current. Plus, converting \qty{34}{\volt} to something
+more useful is difficult anyway.
 
 There's also some risk in drawing too much current from the batteries
 or the DC jack. The average alkaline AA is only designed for an
@@ -855,8 +864,7 @@ Even with less current draw than this, the batteries will likely start
 heating up, which isn't safe for anything involved. Also, if you draw
 too much power from a wall wart, you could damage it too.
 
-Finally, drawing more current will reduce the battery life to
-something even more measly.
+Finally, drawing more current will further reduce the battery life.
 
 \section{Documents and Sources}
 \label{sec:documents}
@@ -891,34 +899,42 @@ with this document:
   \url{https://console5.com/techwiki/images/8/87/Game_Gear_VA1_Schematic_-_DC-DC_and_Sound.png}.
 \end{description}
 
-Unfortunately, I know of no scans of schematics for any other model
-(\model{VA4}, \model{VA5}, or Majesco). However, the minimal variation
-between the \model{VA0} and \model{VA1} schematics suggests that there
-are likely few changes in the later hardware revisions as well.
+I know of no scans of schematics for models other than \model{VA0} and
+\model{VA1}. However, Console5, on that same Tech Wiki page, says
+there are only two revisions of the power board, and the second one is
+rare and only seen in early \model{VA4} units.
 
 The European \model{VA0} document is not very readable, as it appears
-to have been hand-drawn. It also has some extra components, like
-$R_{18}$ and $R_{19}$ (and others), that aren't present in the
-\model{VA1} schematic. It also has a capacitor, $C_9$, to set the soft
-start time for the \qty{5}{\volt} generator.
+to have been hand-drawn. It has some extra components, like $R_{18}$
+and $R_{19}$ (and others), that aren't present in the \model{VA1}
+schematic, and a capacitor, $C_9$, to set the soft start time for the
+\qty{5}{\volt} generator.
 
 Other schematics, for the main and sound boards (also only \model{VA0}
 and \model{VA1}), are at
 \url{https://console5.com/wiki/Game_Gear#Schematics}.
 
-The \model{VA1} documents are printed in a font that doesn't seem to
-scale well. These are the ones I had the most trouble reading:
+The \model{VA1} documents are typeset in a font that doesn't scale
+well. These are the components I had the most trouble reading:
 
 \begin{description}
-\item[$D_1$] A Toshiba \model{U1BC44} diode.
-\item[$C_{13}$] A \qty{820}{\micro\farad} \qty{5.3}{\volt}
-  electrolytic capacitor.
+\item[$D_1$] A Toshiba \model{U1BC44} diode. The \texttt{B} looks like
+  an \texttt{8}.
+\item[$C_{13}$] A \qty{820}{\micro\farad} \qty{6.3}{\volt}
+  electrolytic capacitor. I think \texttt{6} looks a lot like a
+  \texttt{5}, but I think it's a misprint. For one, $C_{13}$ is
+  \qty{6.3}{\volt} on the \model{VA0} schematic, and two,
+  \qty{5.3}{\volt} is not a standard capacitor voltage. Furthermore,
+  on the \model{VA1} schematic, there seems to be a tiny mark in the
+  open piece of the curve on the \texttt{5}, making it look like a
+  \texttt{6}, as though some repair engineer came in and modified the
+  schematic to match the real device.
   
 \item[$J_V$ and $J_G$] A pair of \model{FBA04VA450AB-00}
-  \qty{3.5}{\milli\meter} \qty{45}{\ohm} ferrite beads. The way the
-  schematic is laid out, it suggests that $J_V$ is a different part,
-  but the tiny ``\texttt{*2}'' indicates that $J_V$ and $J_G$ are the
-  same.
+  \qty{3.5}{\milli\meter} \qty{45}{\ohm} ferrite beads. Not only are
+  the \texttt{A}s strange-looking, the labeling also suggests that
+  $J_V$ is a different part. The tiny ``\texttt{*2}'' indicates that
+  $J_V$ and $J_G$ are the same.
 \end{description}
 
 \subsection{Useful Documents}
@@ -958,8 +974,7 @@ Information on LCD bias voltage comes from
   It is related to the current that flows into the base when the
   chip's outputs are off, but how?
 \item How are $C_7$ and $R_9$ controlling the oscillator?
-\item Why is $t_{PE}$ so long? Just to accommodate a large load?
-\item Why is $C_1$ tantalum?
+\item Why is $t_{PE}$ for SCP so long? Only to accommodate a large load?
 \end{itemize}
 
 \section{Revision History}
