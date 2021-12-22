@@ -13,11 +13,8 @@
 \newcommand{\chippin}{\texttt}
 \newcommand{\model}{\textsf}
 
-% TODO: what's the output voltage of the Car Adapter?
-% It's 800 mA at 9V
-
-
 \begin{document}
+\frenchspacing % make smaller spaces between sentences
 \section{About This Document}
 This is my attempt to understand how the DC power board in the Game
 Gear works. It started as just an attempt to find out how much current
@@ -40,9 +37,9 @@ as the chip is the heart of this entire board and I reference its
 datasheet frequently. See Section \ref{sec:documents} for URLs for
 schematics and datasheets.
 
-In this document, chip pins are \chippin{typeset like this},
-components, voltages and currents are typeset like this: \Vref{}, and
-model numbers are \model{typeset like this}.
+In this document, IC pins and model numbers are \chippin{typeset like
+  this}, components, voltages and currents are $typeset_{like this}$,
+and model numbers are \model{typeset like this}.
 
 I try to explain everything in as much depth as I reasonably
 can. However, you will need to understand how transistors work (and
@@ -54,12 +51,12 @@ probably skip to Section \ref{sec:current_draw} and ignore most of the
 electrical explanation.
 
 If you use information from this document in a project, please credit
-me, and add a link to the GitHub repository if possible (it's not
-required, though).
+me and this document, and if possible, add a link to the GitHub
+repository (\url{https://github.com/liamhays/game-gear-power-docs}).
 
 I claim no responsibility if you try to modify your console, tap a
-power line, or something else completely, and your battery-guzzling
-handheld releases the magic blue smoke. Be careful!
+power line, or something else completely, and your handheld releases
+the magic blue smoke. Be careful!
 
 \section{Introduction}
 The Game Gear has to supply 5 volt and 34 volt DC, all from a set of
@@ -69,19 +66,22 @@ efficient.
 \subsection{Where The Power Goes}
 The \qty{5}{\volt} supply powers almost every component in the Game
 Gear. This includes the \model{Z80}, both RAM chips, the cartridge,
-the VDP, the PSG, the LCD picture conversion, and even the florescent
-tube. Most of these components are just silicon within the two or one
-ASIC(s) on the main board, and the tube is driven with an AC inverter
-and the large transformer, also on the main board.
+the VDP, the PSG, the LCD picture conversion circuitry, and even the
+florescent tube. Most of these components are just silicon within the
+two or one ASIC(s) on the main board. The tube is driven with an AC
+inverter and a large transformer, also both on the main board.
 
-The \qty{34}{\volt} supply is used, then, for just one thing: driving
-the actual LCD. I'm not sure why the screen needs such high voltage,
-especially at the low currents ($<\qty{100}{\milli{}A}$) that the
-transistors on the \qty{34}{\volt} switcher can supply. This means,
-however, that if you choose to install a new backlight, \textbf{do not
-  cut the \qty{34}{\volt} line} the way you would for a complete
-screen replacement. The screen still needs it, even if the backlight
-doesn't.
+The \qty{34}{\volt} supply is used for just one purpose: driving the
+actual LCD. I believe the display is a color passive-matrix screen,
+and the voltage is needed to bias the screen. Looking at the
+\model{VA1} schematic of the main board, on the second sheet, one can
+see that the \qty{34}{\volt} supply is connected to a large circuit
+block including $VR_1$, which is the contrast control potentiometer.
+
+This means that if, say, you choose to install a new backlight,
+\textbf{do not cut the \qty{34}{\volt} line} the way you would for a
+complete screen replacement. The original screen always needs it, to
+remain functional.
 
 \subsection{Signal and Line Names}
 \begin{description}
@@ -89,8 +89,8 @@ doesn't.
   jack. This is ideally \qty{9}{\volt}, but it will vary. Note that
   this is called \texttt{VBAT} on the schematic.
 \item[\Vout{}] The final regulated \qty{5}{\volt} output.
-\item[\Vref{}] A \qty{1}{\milli{}A} \qty{1.28}{\volt}, internally
-  generated within \model{MB3775}.
+\item[\Vref{}] A \qty{1}{\milli{}A} \qty{1.28}{\volt} supply,
+  internally generated within the \model{MB3775}.
 \end{description}
 
 \section{Power Input Section}
@@ -110,9 +110,9 @@ facts and statistics I state here are from the graphs on this
 page. For alkaline AAs, use the \qty{500}{\milli{}A} discharge current
 graph. The NiMH graph is at the very bottom of the page.
 
-Raw unregulated power can come from one of two sources on the Game
-Gear: a) the 6 AAs, or b) the DC power jack. The AAs are connected
-in series, for an optimal voltage of \qty{9}{\volt}.
+Input power can come from one of two sources on the Game Gear: a) the
+6 AAs, or b) the DC power jack. The AAs are connected in series, for
+an optimal voltage of \qty{9}{\volt}.
 
 As in many battery-powered devices, both alkaline and NiMH AAs work
 fine. However, NiMH batteries have a voltage profile during discharge
@@ -121,6 +121,13 @@ drops sharply. This means that while NiMH batteries work in the
 console, there isn't much time between when the power LED starts
 blinking and when the battery voltage gets so low that the console
 can't even turn on.
+
+I have found on my unit that the power LED will usually not even enter
+a full blinking mode (see Section \ref{sec:low_voltage}) once NiMH
+batteries are low. It starts flashing in the ``not fully off'' mode,
+and never reaches the ``fully off'' mode before the whole unit powers
+down. This exact behavior is, however, probably dependent on NiMH
+battery construction, health, and even brand.
 
 The \model{MB3775} is responsible for turning the console off when
 \Vcc{} is beneath \qty{2.5}{\volt} (see Section \ref{sec:scp}). \Vcc{}
@@ -176,13 +183,14 @@ batteries (or vice versa) on the fly, while powered on. However, this
 causes the power to flicker for long enough that the console resets,
 on both plugging in and unplugging the DC plug.
 
-There probably isn't a good way to solve this aside from a very
-fast-switching diode (a Schottky diode or similar). What it does
-indicate, though, is that the recovery time for $D_1$ is longer than
-the frequency of the switcher on at least the \qty{5}{\volt} output,
-and probably the \qty{34}{\volt} output (I'm not sure of this, but the
-screen doesn't seem to flicker in the same way as it does when the
-console is power-cycled).
+The most likely explanation for this is that the time needed for a
+stable connection to be established in the jack \textit{and} for both
+the DC supply and the Game Gear to both stabilize is too long for the
+switchers in the Game Gear.
+
+The screen doesn't seem to flicker in the same way as it does when the
+console is power-cycled, so the \qty{34}{\volt} supply may be more
+resilient---perhaps an effect of the gigantic inductor $L_1$.
 
 \subsection{Plug Dimensions and Switch}
 \label{sec:plug_dimensions}
@@ -209,20 +217,20 @@ as the long parallel vertical tubes to the lower right of the
 
 Finally, the switch will connect \Vcc{} to either ground (when the
 system is off) or to the battery/DC jack input. $C_{14}$ will settle
-ripples created by the action of the switch turning on. Note that the
-switch is vertically flipped on the \model{VA1} schematic, between
-regions.
+ripples created by the action of the switch turning on. The switch is
+vertically flipped on the \model{VA1} schematic, between regions.
 
 \subsection{Input Voltage}
 This is an area that is actually very confusing, especially if you're
-trying to build your own power cord, like I did. The Game Gear case
-labels the power jack as \texttt{DC 9V}. The official Game Gear Car
-Adapter outputs \qty{9}{\volt}. However, the official Sega wall wart
-(model \model{MK-2103}) for the Game Gear is \qty{10}{\volt}. The
-voltages don't match---why doesn't this cause a problem?
+trying to build your own power cord. The Game Gear case labels the
+power jack as \texttt{DC 9V}. The official Game Gear Car Adapter
+outputs \qty{9}{\volt}. However, the official Sega wall wart (model
+\model{MK-2103}) for the Game Gear is \qty{10}{\volt}. The voltages
+don't match---why doesn't this cause a problem?
 
 The exact input voltage doesn't matter too much, within reason,
-because:
+because the system is designed to tolerate a reasonably wide voltage
+range. Here's why it's built that way:
 
 \begin{enumerate}
 \item An alkaline AA will only be at \qty{1.5}{\volt} for the first
@@ -230,15 +238,14 @@ because:
   at the discharge rate used by the Game Gear. From there, it slowly
   drops. This means that the average input voltage will be about
   $\qty{1.3}{\volt} \times{} 6 = \qty{7.8}{\volt}$. Clearly, this is
-  far beneath the optimal \qty{9}{\volt} (or even \qty{10}{\volt})
-  that Sega suggests one should be using, but the console is tolerant
-  and works fine.
+  far beneath the optimal \qty{9}{\volt} (or even \qty{10}{\volt}),
+  but the console is tolerant and works fine.
 \item The \model{MB3775} can operate from \qty{3.6}{\volt} to
   \qty{18}{\volt}. It is designed to significantly adjust the
-  switching regulators in response to \Vcc{}, among other factors.
-%\item The error amplifier means that the precise value of \Vcc{}
-%  doesn't matter (within reasonable limit), as the chip's output will
-%  adjust to compensate.
+  switching regulators in response to \Vcc{}, among other factors. If
+  it can compensate, and the components it's connected to are
+  tolerant, input voltage ends up being of minimal importance within
+  reason.
 \end{enumerate}
 
 All this is to say that the power circuit is designed to work with a
@@ -246,15 +253,21 @@ significant (at least $\pm{}\qty{2}{\volt}$, and probably even
 greater) deviation in \Vcc{} voltage. For example, I powered my unit
 with \qty{12}{\volt} and it worked perfectly.
 
+There are no electrolytic capacitors connected to \Vcc{}, so it is not
+limited by the hazard of driving one with too much voltage.
+
 \subsection{Low Voltage Threshold}
+\label{sec:low_voltage}
 When the ASIC (or the non-video ASIC in a \model{VA0}) detects low
 input voltage, it blinks the red power LED to notify the user. If the
-voltage drops even further, the entire console shuts off. I have
-determined the voltages where these behaviors occur. For this
-experiment, I built a small adjustable regulator with a \model{LM317},
-and connected the regulated output to both the DC jack on my Game Gear
-and a voltmeter. The initial input voltage was \qty{10.07}{\volt}, and
-I turned down the voltage until the console's behavior changed.
+voltage drops even further, the entire console shuts off.
+
+The list below shows the voltages at which this behavior occurs, on my
+unit. For this experiment, I built a small adjustable DC supply with a
+\model{LM317}, and connected the regulated output to both the DC jack
+on my Game Gear and a voltmeter. The initial input voltage was
+\qty{10.07}{\volt}, and I turned down the voltage until the console's
+behavior changed.
 
 This is what I observed:
 
@@ -288,12 +301,11 @@ cause of the shutoff.
 I do not have a European Game Gear, but I assume that an Arduino or
 similar power supply would work fine, as Arduinos use the same size
 power jack. These are very easy to acquire, but make sure the polarity
-is correct if you do this, because an Arduino-style supply is always
-center-positive.
+is correct: an Arduino or similar supply is always center-positive.
 
-For a US Game Gear, I've had success using the CUI Devices plug model
+For a US Game Gear, I use CUI Devices plug model
 \model{PP-014}. DigiKey carries this as part number
-\model{CP-014-ND}. This plug fits and works perfectly.
+\model{CP-014-ND}. It fits and works perfectly.
 
 \section{\model{MB3775} Configuration}
 The Fujitsu \model{MB3775PF} ($IC_1$) is the heart of the whole power
@@ -322,10 +334,11 @@ here.
 \label{sec:scp}
 I'm confident that the Game Gear's short circuit protection (SCP) is
 actually the heart of a common mistake or rumor: the ASIC(s) on the
-main board \emph{do not} protect the console from shorts. Instead, the
-protection is all within the power board, and basically entirely
-enclosed in the \model{MB3775}. The SCP circuitry works like this (don't
-confuse the SCP circuitry with the \chippin{SCP} pin):
+main board \emph{do not} protect the console from shorts or power
+problems. Instead, the protection is all within the power board, and
+basically entirely enclosed in the \model{MB3775}. The SCP circuitry
+works like this (don't confuse the SCP circuitry with the
+\chippin{SCP} pin):
 
 \begin{enumerate}
 \item The outputs of the error amplifiers are connected to the
@@ -401,9 +414,8 @@ SCP to some desired configuration will allow it to discriminate
 between the normal load and an undesired load (like a short circuit, or
 a component malfunction).
 
-I don't know why $C_1$ is tantalum. Possibly to save space on the board.
+%I don't know why $C_1$ is tantalum. Possibly to save space on the board.
 
-% 
 \subsection{Capacitor ESR}
 The \model{MB3775} datasheet warns that electrolytic smoothing
 capacitors with low equivalent series resistance (ESR) can create
@@ -440,9 +452,9 @@ divider to the output voltage:
   = \qty{1.28}{\volt}\times{}(1+2.941) = \qty{5.045}{\volt}.
 \end{displaymath}
 
-Note that $R_{14}$ and $R_{15}$ are \qty{1}{\%} accuracy resistors, to
-ensure that the output voltage from the chip is stable at
-\qty{5}{\volt} or very close.
+$R_{14}$ and $R_{15}$ are \qty{1}{\%} accuracy resistors, to ensure
+that the output voltage from the chip is stable at \qty{5}{\volt} or
+very close.
 
 % \texorpdfstring is according to https://tex.stackexchange.com/a/53514
 
@@ -525,12 +537,10 @@ know exactly what it means.
 \subsection{The Step-down Switching Regulator}
 \label{sec:step-down_regulator}
 The PWM output from the \chippin{OUT1} pin is not enough to actually
-make a \qty{5}{\volt} supply. It isn't constant, it's low current, and
-is likely unpredictable without the error amplifier configured
-properly. Instead, it is meant to be used as the input to the base of
-a transistor in a simple step-down switching regulator. For the
-\qty{5}{\volt} circuit, the regulator is made out of $Q_3$, $D_3$,
-$L_2$, $C_{12}$, and $C_{13}$. It works like this:
+make a \qty{5}{\volt} supply. It is meant to be used as the input to
+the base of a transistor in a simple step-down switching
+regulator. For the \qty{5}{\volt} circuit, the regulator is made out
+of $Q_3$, $D_3$, $L_2$, $C_{12}$, and $C_{13}$. It works like this:
 
 \begin{enumerate}
 \item When $Q_3$ is on, a linearly increasing current will flow
@@ -595,9 +605,9 @@ that of the \qty{5}{\volt} circuit, though with different values:
 \end{displaymath}
 
 \subsection{Max Duty Cycle}
-As this is a step-up regulator (see Section
-\ref{sec:34v_actual_duty_cycle}), the max duty cycle should be
-configured to something beneath \qty{100}{\%}. It is set to
+As this is a step-up regulator, the max duty cycle should be
+configured to something beneath \qty{100}{\%} (see Section
+\ref{sec:34v_actual_duty_cycle}). It is set to
 
 \begin{displaymath}
   \frac{\qty{1}{\volt} - V_{dt}}{\qty{0.6}{\volt}} \times{} 100 = \qty{70.67}{\%}
@@ -671,8 +681,8 @@ $C_3$ is identical to $C_8$ (see Section \ref{sec:5v_error_amp_char}).
 \subsection{Soft Start Time}
 \label{sec:soft_start_time}
 The soft start time for the \qty{34}{\volt} half of the chip is set
-with $C_2$, a \qty{0.1}{\micro\farad} capacitor. The rather large
-equation from page 16 of the datasheet gives
+with $C_2$, a \qty{0.1}{\micro\farad} capacitor. The large equation
+from page 16 of the datasheet gives
 
 \begin{displaymath}
   V_{cc}\left(\frac{-C_2R_aR_b}{R_a+R_b}\right)\left(\frac{1-0.7(R_a+R_b)}{1.28R_a}\right)
@@ -698,8 +708,9 @@ This has two effects on the circuit:
 \begin{enumerate}
 \item The \qty{5}{\volt} regulator will be fully functional before the
   \qty{34}{\volt} regulator is. The status of the \qty{5}{\volt}
-  regulator isn't otherwise important, except for the fact that $L_1$
-  is connected to $Q_3$'s base.
+  regulator isn't important except that $L_1$ is connected to $Q_3$'s
+  base, so the output of the \qty{34}{\volt} supply is dependent on
+  the \qty{5}{\volt} supply already running and stable.
 \item A slow startup will allow the current drawn by the
   \qty{34}{\volt} regulator to ramp up slowly, so that there is
   minimal voltage drop on \Vcc{}. This ensures that the circuit isn't
@@ -790,9 +801,8 @@ overcharged. In fact, this adds to the reasoning behind the soft start
 time: the \qty{5}{\volt} supply has to be fully operational before the
 \qty{34}{\volt} supply begins regulating.
 
-Now, clearly the regulated output never rises much above
-\qty{34}{\volt} \textit{anyway}, since $C_5$ is only rated for
-\qty{35}{\volt}.
+Now, the \qty{34}{\volt} must never rise very much \textit{anyway},
+since $C_5$ is only rated for \qty{35}{\volt}.
 
 % What I worry is that this is something far more complicated, perhaps
 % some form of phase compensation or alignment. There are reasons I've
@@ -923,6 +933,9 @@ Analog Devices also has a good discussion of switchers:
 
 \subsection{Other Sources}
 \label{sec:other_sources}
+Data on Sega power supplies comes from images on Sega Retro
+(\url{https://segaretro.org}).
+
 This Stack\-Ex\-change answer explains switched jacks very well:
 \url{https://electronics.stackexchange.com/a/90531}.
 
@@ -935,6 +948,9 @@ plug. Google ``game gear power jack dimensions'' and you'll find one
 like this:
 \url{https://www.reddit.com/r/game_gear/comments/gh6psb/what_polarity_is_the_gg_power_adapter}.
 
+Information on LCD bias voltage comes from
+\url{http://www.hantronix.com/files/down/neg-invr.pdf} and
+\url{https://www.pacificdisplay.com/lcd_multiplex_drive.htm}.
 \section{Remaining Questions}
 \label{sec:remaining_questions}
 \begin{itemize}
