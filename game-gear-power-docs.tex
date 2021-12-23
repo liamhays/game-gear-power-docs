@@ -51,6 +51,10 @@ something that draws power from the console's power rails, you could
 probably skip to Section \ref{sec:current_draw} and ignore most of the
 electrical explanation.
 
+I also say \textit{adaptor} instead of \textit{adapter}, as that is
+apparently the proper spelling when referring to a mechanical device:
+\url{https://thewordcounter.com/adaptor-vs-adapter/}.
+
 If you use information from this document in a project, please credit
 me and this document, and if possible, add a link to the GitHub
 repository (\url{https://github.com/liamhays/game-gear-power-docs}).
@@ -147,9 +151,9 @@ it is close to fully discharged.
 % like SCP to me.
 \subsection{DC Jack Switching}
 \label{sec:jack_switching}
-Note: this subsection describes the DC jack in an American Game
-Gear. For a European model (see Section \ref{sec:plug_dimensions}),
-switch the polarities of the jack.
+Note: this subsection describes the DC jack in a US Game Gear. For a
+European model (see Section \ref{sec:plug_dimensions}), switch the
+polarities of the jack.
 
 The DC jack, $J_1$, is a particular type of jack known as a
 \textit{switched jack}. For convenience, number the pins of the jack
@@ -195,10 +199,12 @@ the gigantic inductor $L_1$.
 
 \subsection{Plug Dimensions and Switch}
 \label{sec:plug_dimensions}
-An American unit will use the uppermost power input block (labeled
-``\texttt{For 120V area}'') on the \model{VA1} schematic. American
-units accept a center-positive \qty{1.7}{\milli\meter} inner diameter
-by \qty{4.75}{\milli\meter} outer diameter barrel plug.
+% The little \, is needed, otherwise the space between "labeled" and
+% "For" looks way too small
+A US unit will use the uppermost power input block (labeled\,
+\texttt{For 120V area}) on the \model{VA1} schematic. US units
+accept a center-positive \qty{1.7}{\milli\meter} inner diameter by
+\qty{4.75}{\milli\meter} outer diameter barrel plug.
 
 Europe, of course, uses \qty{240}{\volt} wall power, so a European
 unit will use the lower power input block (``\texttt{For AC230V/AC240V
@@ -208,26 +214,46 @@ more commonly-sized \qty{2.1}{\milli\meter} inner diameter and
 \qty{5.5}{\milli\meter} outer diameter \textbf{center-negative}
 plug. Note the difference in polarity between regions.
 
-Japanese Game Gears apparently also use the European plug dimensions
-and pinout. See Section \ref{sec:other_sources} for sources on this.
-
 The positive and negative lines are then cleaned with the ferrite
-beads $J_V$ and $J_G$. These are visible on the circuit board itself
-as the long parallel vertical tubes to the lower right of the
+beads $J_V$ and $J_G$. These are visible on the power circuit board as
+the long, black, and vertical parallel tubes to the lower right of the
 \model{MB3775}.
 
 Finally, the switch will connect \Vcc{} to either ground (when the
-system is off) or to the battery/DC jack input. $C_{14}$ will settle
+system is off) or to the battery/DC jack input. $C_{14}$ settles
 ripples created by the action of the switch turning on. The switch is
 vertically flipped on the \model{VA1} schematic, between regions.
 
+\subsection{Official AC Adaptors}
+\label{sec:ac_adaptors}
+For US Game Gear units, the Sega \model{MK-2103} is the correct AC
+adaptor. This is a center positive, \qty{10}{\volt} supply built for
+\qty{120}{\volt} AC input. In Europe, the correct unit is instead the
+\model{MK-1636}, which has the opposite polarity. From the pictures on
+Sega Retro, some units have \qty{9}{\volt} output, while others have
+\qty{10}{\volt} output. (For information on why the voltage
+discrepancy doesn't matter, see Section \ref{sec:input_voltage}. Both
+the US and European supplies are also compatible with their region's
+Model 2 Genesis units, 32X units, and the Sega Nomad.
+
+Japanese Game Gears look to be compatible with \model{SA-150},
+\model{SA-160} and \model{SA-160A} model power adaptors, at least
+according to Sega Retro. These are center negative, \qty{9}{\volt}
+supplies set for \qty{220}{\volt} AC input. There may be other
+Japanese-only adaptors that are compatible.
+
+The official Game Gear Car Adaptor outputs \qty{9}{\volt}. Car
+chargers are the same voltage in at least the US and Europe, and the
+box for the Japanese Car Adaptor says \texttt{12V}. As such, I think
+all versions of the Car Adaptor are the same around the world.
+
 \subsection{Input Voltage}
-This is an area that is actually very confusing, especially if you're
-trying to build your own power cord. The Game Gear case labels the
-power jack as \texttt{DC 9V}. The official Game Gear Car Adapter
-outputs \qty{9}{\volt}. However, the official Sega wall wart (model
-\model{MK-2103}) for the Game Gear is \qty{10}{\volt}. The voltages
-don't match---why doesn't this cause a problem?
+\label{sec:input_voltage}
+This subject is very confusing, especially if you're trying to build
+your own power cord. The Game Gear case labels the power jack as
+\texttt{DC 9V}. However, the official US Sega wall wart, model
+\model{MK-2103}, supplies \qty{10}{\volt}. The voltages don't
+match---why doesn't this cause a problem?
 
 The exact input voltage doesn't matter too much, within reason,
 because the system is designed to tolerate a reasonably wide voltage
@@ -243,23 +269,28 @@ range. Here's why it's built that way:
   but the console is tolerant and works fine.
 \item The \model{MB3775} can operate from \qty{3.6}{\volt} to
   \qty{18}{\volt}. It is designed to significantly adjust the
-  switching regulators in response to \Vcc{}, among other factors. If
-  it can compensate, and the components it's connected to are
-  tolerant, input voltage ends up being of minimal importance within
-  reason.
+  switching regulators in response to \Vcc{} and other factors. If it
+  can compensate, and the components it's connected to are tolerant,
+  input voltage ends up being of minimal importance, within reason.
 \end{enumerate}
 
 All this is to say that the power circuit is designed to work with a
 significant (at least $\pm{}\qty{2}{\volt}$, and probably even
-greater) deviation in \Vcc{} voltage. For example, I powered my unit
-with \qty{12}{\volt} and it worked perfectly.
+greater) deviation in \Vcc{} voltage. I have even powered my unit with
+\qty{12}{\volt} and it worked perfectly.
 
 There are no electrolytic capacitors connected to \Vcc{}, so it is not
 limited by the hazard of driving one with too much voltage.
 
+The fact that the Japanese power supplies are all \qty{9}{\volt} (see
+\ref{sec:ac_adaptors}) also explains why the Game Gear case says
+\texttt{DC 9V}: Sega must not have updated the label when either they
+built export versions of the Game Gear or released \qty{10}{\volt}
+power supplies in the rest of the world.
+
 \subsection{Low Voltage Threshold}
 \label{sec:low_voltage}
-When the ASIC (or the non-video ASIC in a \model{VA0}) detects low
+When the ASIC (or the non-video ASIC in a two-chip model) detects low
 input voltage, it blinks the red power LED to notify the user. If the
 voltage drops even further, the entire console shuts off.
 
@@ -283,11 +314,10 @@ This is what I observed:
 \end{description}
 
 I believe the shutdown below \qty{6}{\volt} is triggered by the
-under-voltage lockout. However, as far as I can tell, the
-under-voltage lockout is only triggered when \Vcc{} falls beneath
-about \qty{2.6}{\volt}, which is obviously much lower than the
-\qty{6}{\volt} threshold I observed. I do not know the precise
-cause of the shutoff.
+under-voltage lockout. However, the under-voltage lockout is only
+triggered when \Vcc{} falls beneath about \qty{2.6}{\volt}, which is
+obviously much lower than the \qty{6}{\volt} threshold I observed. I
+do not know the precise cause of the shutoff.
 
 % These values were almost surely configured on the basis of an alkaline
 % AA's discharge profile (Section \ref{sec:batteries_chemistry}). For
@@ -392,9 +422,10 @@ where
 The under-voltage lockout circuit is actually a \emph{different}
 feature of the \model{MB3775}, designed to latch and shut off the
 outputs if \Vcc{} falls beneath a \qty{2.5}{\volt}
-internally-generated reference voltage. The SCP circuitry simply
-controls that lockout latch, gaining control over the output of the
-entire chip.
+internally-generated reference voltage. It is present in the chip to
+prevent fluctuations in \Vcc{} from possibly harming the system. The
+SCP circuitry simply controls that lockout latch, gaining control over
+the output of the entire chip.
 
 Point 1 above means that if \emph{either} of the chip's outputs
 trigger the short condition, then the entire chip will power down,
@@ -642,10 +673,10 @@ and
       \qty{27}{\kilo\ohm}}\right) = \qty{0.576}{\volt}.
 \end{displaymath}
 
-Note: page 14 of the \model{MB3775} datasheet says that ``if no output
-duty setting is required,'' then ``the voltage'' (presumably the
-voltage on \chippin{DTC2}, though it's rather ambiguous) should be set
-higher than \qty{1.3}{\volt}, or $V_{dt} > \qty{0.4}{\volt}$. However,
+Page 14 of the \model{MB3775} datasheet says that ``if no output duty
+setting is required,'' then ``the voltage'' (presumably the voltage on
+\chippin{DTC2}, though it's rather ambiguous) should be set higher
+than \qty{1.3}{\volt}, or $V_{dt} > \qty{0.4}{\volt}$. However,
 $V_{dt} = \qty{0.576}{\volt}$ is clearly higher than \qty{0.4}{\volt},
 but the \qty{34}{\volt} output definitely has a specific output duty
 setting. The datasheet itself even has a graph on page 15 that shows
@@ -674,8 +705,8 @@ given a \Vcc{} of \qty{9}{\volt}.
 % the high-voltage boost is never generated.
 
 The max duty cycle is important for this regulator, unlike the
-\qty{5}{\volt} regulator. According to the \model{MB3775} datasheet
-(page 14), it is possible for the feedback pin (\chippin{FB2}) of the
+\qty{5}{\volt} regulator. According to page 14 of the \model{MB3775}
+datasheet, it is possible for the feedback pin (\chippin{FB2}) of the
 error amplifier to go below the voltage of the internally-generated
 triangular wave (the feedback pin is connected to the error amplifier
 output within the chip). This causes the chip's output transistor to
@@ -950,7 +981,8 @@ Analog Devices also has a good discussion of switchers:
 \subsection{Other Sources}
 \label{sec:other_sources}
 Data on Sega power supplies comes from images on Sega Retro
-(\url{https://segaretro.org}).
+(\url{https://segaretro.org}), in particular the page on AC adaptors:
+\url{https://segaretro.org/AC_adaptor}.
 
 This Stack\-Ex\-change answer explains switched jacks very well:
 \url{https://electronics.stackexchange.com/a/90531}.
@@ -967,6 +999,12 @@ like this:
 Information on LCD bias voltage comes from
 \url{http://www.hantronix.com/files/down/neg-invr.pdf} and
 \url{https://www.pacificdisplay.com/lcd_multiplex_drive.htm}.
+
+Somebody's Wix site has a good picture of the power PCB:
+\url{https://8bithardware.wixsite.com/website/post/repairing-sega-game-gear}.
+
+The Rick Steves community discusses car chargers in Europe:
+\url{https://community.ricksteves.com/travel-forum/to-the-west/are-car-chargers-the-same-in-european-cars}
 \section{Remaining Questions}
 \label{sec:remaining_questions}
 \begin{itemize}
@@ -974,7 +1012,10 @@ Information on LCD bias voltage comes from
   It is related to the current that flows into the base when the
   chip's outputs are off, but how?
 \item How are $C_7$ and $R_9$ controlling the oscillator?
-\item Why is $t_{PE}$ for SCP so long? Only to accommodate a large load?
+\item Why is $t_{PE}$ for SCP so long? Only to accommodate a large
+  load?
+\item What is shutting off the console once \Vcc{} is below
+  \qty{6}{\volt}, if it isn't the UVLO?
 \end{itemize}
 
 \section{Revision History}
